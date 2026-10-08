@@ -1,39 +1,46 @@
-# Money Arena Trading Marketplace
+# Money Arena M-Pesa backend
 
-Money Arena is a marketplace starter for Expert Advisors (EAs), Deriv DBots, TradingView/MT5 indicators and trading strategies.
+This backend provides the server-side payment layer for the Money Arena marketplace.
 
-## Included
+## Flow
 
-- Homepage
-- Marketplace
-- Product pages
-- Login page
-- Cart
-- M-Pesa checkout
-- M-Pesa STK Push backend structure
-- Asynchronous M-Pesa callback handling
-- Order/payment status tracking
-- Customer dashboard
-- Admin page starter
-- Secure-payment gating for downloads
-- Production integration checklist
+1. Customer adds products to cart.
+2. Checkout collects name, email and Kenyan M-Pesa number.
+3. Frontend sends the order to `POST /api/orders`.
+4. Frontend calls `POST /api/payments/mpesa/stk-push`.
+5. Server requests a Daraja access token and sends an M-Pesa Express/STK Push request.
+6. Customer approves the prompt on their phone.
+7. Safaricom sends the asynchronous callback to `/api/payments/mpesa/callback`.
+8. The order is marked `paid` only when the callback reports a successful result.
+9. The customer can then use the dashboard/download endpoint.
 
-## Run locally
-
-You need Node.js 18+.
+## Setup
 
 ```bash
 cd backend
 npm install
 cp .env.example .env
-# add your Daraja credentials
 npm start
 ```
 
-Then open `http://localhost:3000`.
+For sandbox testing, create a Daraja app and use the sandbox credentials from Safaricom. For production, complete Safaricom's Go Live process and use the production credentials.
 
-For live M-Pesa, use your own Daraja production credentials and a publicly reachable HTTPS callback URL. Never put M-Pesa secrets in frontend code.
+Do not put Consumer Secret, Passkey, or other M-Pesa credentials in frontend JavaScript.
 
-The included download endpoint is a payment gate placeholder. Before selling real files, connect it to private storage with signed/expiring URLs.
+## Important production hardening
 
-Safaricom's Daraja platform provides M-Pesa APIs and requires a server-side callback for asynchronous payment results. citeturn0search0
+This starter intentionally keeps the payment architecture clear and easy to deploy. Before taking real money, add:
+
+- a real database (PostgreSQL/MySQL)
+- real user authentication and authorization
+- admin authentication with MFA
+- private object storage for paid EA/DBot/indicator files
+- signed, expiring download URLs
+- rate limiting and request validation
+- webhook idempotency and transaction reconciliation
+- HTTPS
+- audit logs
+- proper tax/invoice handling
+- M-Pesa Transaction Status reconciliation when callbacks are delayed
+
+Safaricom documents Transaction Status as a secondary reconciliation mechanism when callbacks are not received.
