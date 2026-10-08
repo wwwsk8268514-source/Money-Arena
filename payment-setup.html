@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>M-Pesa Setup | Money Arena</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<header class="site-header"><a class="brand" href="index.html">Money Arena</a></header>
+<main class="container"><section class="card">
+<h1>M-Pesa Setup</h1>
+<ol>
+<li>Create/login to your Safaricom Daraja developer account.</li>
+<li>Create a sandbox app and obtain Consumer Key and Consumer Secret.</li>
+<li>Use the sandbox test Shortcode and Passkey supplied by Daraja.</li>
+<li>Copy <code>backend/.env.example</code> to <code>backend/.env</code>.</li>
+<li>Set <code>PUBLIC_BASE_URL</code> to a publicly reachable HTTPS URL for callbacks.</li>
+<li>Run <code>npm install</code> and <code>npm start</code> inside the backend folder.</li>
+<li>Test checkout with the Daraja sandbox before requesting production go-live.</li>
+</ol>
+<p><strong>Security:</strong> never paste Consumer Secret or Passkey into <code>checkout.html</code> or other browser JavaScript.</p>
+</section></main>
+</body></html>

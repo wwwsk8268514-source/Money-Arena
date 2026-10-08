@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Checkout | Money Arena</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="index.html">Money Arena</a>
+  <nav><a href="marketplace.html">Marketplace</a><a href="dashboard.html">Dashboard</a></nav>
+</header>
+
+<main class="container checkout-page">
+  <section class="card">
+    <h1>Secure Checkout</h1>
+    <p>Pay securely with <strong>M-Pesa</strong>. You will receive an M-Pesa prompt on your phone.</p>
+
+    <form id="checkoutForm">
+      <label>Full name
+        <input id="name" required autocomplete="name" placeholder="Your full name">
+      </label>
+      <label>Email
+        <input id="email" type="email" required autocomplete="email" placeholder="you@example.com">
+      </label>
+      <label>M-Pesa phone number
+        <input id="phone" required inputmode="tel" autocomplete="tel" placeholder="07XXXXXXXX or 2547XXXXXXXX">
+      </label>
+
+      <div id="orderSummary" class="order-summary"></div>
+      <button class="btn primary" type="submit" id="payBtn">Pay with M-Pesa</button>
+      <p id="paymentMessage" class="notice"></p>
+    </form>
+  </section>
+</main>
+
+<script>
+const cart = JSON.parse(localStorage.getItem("cart") || "[]");
+const summary = document.getElementById("orderSummary");
+const message = document.getElementById("paymentMessage");
+const payBtn = document.getElementById("payBtn");
+
+const total = cart.reduce((s, x) => s + Number(x.price || 0) * Number(x.quantity || 1), 0);
+summary.innerHTML = cart.length
+  ? cart.map(x => `<div>${x.name} × ${x.quantity || 1} — KES ${(Number(x.price||0)*(x.quantity||1)).toFixed(2)}</div>`).join("") +
+    `<hr><strong>Total: KES ${total.toFixed(2)}</strong>`
+  : "<strong>Your cart is empty.</strong>";
+
+function show(msg, ok=false) {
+  message.textContent = msg;
+  message.className = "notice " + (ok ? "success" : "error");
+}
+
+async function waitForPayment(orderId) {
+  for (let i = 0; i < 24; i++) {
+    await new Promise(r => setTimeout(r, 5000));
+    const r = await fetch(`/api/orders/${encodeURIComponent(orderId)}`);
+    if (!r.ok) continue;
+    const {order} = await r.json();
+    if (order.status === "paid") {
+      localStorage.removeItem("cart");
+      show(`Payment confirmed. Receipt: ${order.mpesaReceipt || "confirmed"}. Your order is ready in Dashboard.`, true);
+      payBtn.disabled = false;
+      payBtn.textContent = "Payment Confirmed";
+      return;
+    }
+    if (order.status === "failed") {
+      show("M-Pesa payment was not completed. Please try again.");
+      payBtn.disabled = false;
+      payBtn.textContent = "Pay with M-Pesa";
+      return;
+    }
+  }
+  show("We are still waiting for the M-Pesa confirmation. Check Dashboard shortly.");
+  payBtn.disabled = false;
+  payBtn.textContent = "Pay with M-Pesa";
+}
+
+document.getElementById("checkoutForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  if (!cart.length) return show("Your cart is empty.");
+  if (!Number.isInteger(total) || total < 1) return show("Invalid order total.");
+
+  payBtn.disabled = true;
+  payBtn.textContent = "Starting M-Pesa…";
+  show("Creating your order…");
+
+  try {
+    const customer = {
+      name: document.getElementById("name").value.trim(),
+      email: document.getElementById("email").value.trim(),
+      phone: document.getElementById("phone").value.trim()
+    };
+
+    const orderResp = await fetch("/api/orders", {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({customer, items: cart, amount: Math.round(total), currency:"KES"})
+    });
+    const orderData = await orderResp.json();
+    if (!orderResp.ok) throw new Error(orderData.error || "Could not create order.");
+
+    show("Sending M-Pesa prompt…");
+    const payResp = await fetch("/api/payments/mpesa/stk-push", {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({orderId: orderData.order.id})
+    });
+    const payData = await payResp.json();
+    if (!payResp.ok) throw new Error(payData.error || "Could not start M-Pesa payment.");
+
+    show(payData.message || "Check your phone and enter your M-Pesa PIN.");
+    payBtn.textContent = "Waiting for M-Pesa…";
+    await waitForPayment(orderData.order.id);
+  } catch (err) {
+    show(err.message || "Payment could not be started.");
+    payBtn.disabled = false;
+    payBtn.textContent = "Pay with M-Pesa";
+  }
+});
+</script>
+</body>
+</html>

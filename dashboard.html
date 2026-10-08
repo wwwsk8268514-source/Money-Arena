@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dashboard | Money Arena</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<header class="site-header"><a class="brand" href="index.html">Money Arena</a>
+<nav><a href="marketplace.html">Marketplace</a><a href="cart.html">Cart</a></nav></header>
+<main class="container">
+<section class="card">
+<h1>Customer Dashboard</h1>
+<p>Enter your order ID to check M-Pesa payment status and download access.</p>
+<div class="row"><input id="orderId" placeholder="ORD_..." /><button class="btn primary" id="check">Check Order</button></div>
+<div id="result" class="notice"></div>
+</section>
+</main>
+<script>
+document.getElementById("check").onclick = async () => {
+ const id = document.getElementById("orderId").value.trim();
+ const box = document.getElementById("result");
+ if(!id) return box.textContent="Enter an order ID.";
+ try{
+  const r=await fetch("/api/orders/"+encodeURIComponent(id)); const d=await r.json();
+  if(!r.ok) throw new Error(d.error||"Order not found");
+  const o=d.order;
+  box.innerHTML="<strong>Status: "+o.status+"</strong><br>Total: KES "+o.amount+
+   (o.mpesaReceipt ? "<br>M-Pesa receipt: "+o.mpesaReceipt : "")+
+   "<br><br>"+o.items.map(i=>i.name+" — "+(o.status==="paid" ? "<button onclick=\"downloadItem('"+o.id+"','"+i.id+"')\">Download access</button>" : "Available after payment")).join("<br>");
+ }catch(e){box.textContent=e.message}
+};
+async function downloadItem(orderId, productId){
+ const r=await fetch(`/api/download/${encodeURIComponent(orderId)}/${encodeURIComponent(productId)}`);
+ const d=await r.json(); alert(d.message || d.error);
+}
+</script>
+</body></html>
